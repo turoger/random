@@ -1,0 +1,646 @@
+---
+title: "Grad School Survey"
+author: "Roger Tu"
+date: "September 3, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import and initialize the graduate student survey data.
+
+```{r, include = FALSE, echo=FALSE}
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+df <- read.csv("c:/Users/turog/Downloads/Grad_Student_Survey_2019.csv", header = TRUE)
+dimensions <- names(df)
+```
+
+Index graduate student dataframe columns.
+
+```{r, , echo=FALSE}
+general <- dimensions[2:11]
+lounge <- dimensions[12:15]
+admission <- dimensions[16:36]
+retreat <- dimensions[37:44]
+bicos_sat <- dimensions[46:53]
+prog_sat <- dimensions[55:73]
+mileston <- dimensions[75:78]
+resource <- dimensions[79]
+policies <- dimensions[80:91]
+skills_A <- dimensions[93:98]
+skills_B <- dimensions[99:104]
+training <- dimensions[105:129]
+committ <- dimensions[131:150]
+advisor <- dimensions[152:172]
+co_advi <- dimensions[174:202]
+finance <- dimensions[204:231]
+mental <- dimensions[233:263]
+stu_life <-dimensions[264:295]
+harrass <- dimensions[296:328]
+dev <- dimensions[329:341]
+gsc <- dimensions[342:353]
+extra <- dimensions[c(45,54,74,92,130,151,173,232)]
+```
+
+Create a vector containing all indices to be removed.
+
+```{r, echo=FALSE}
+to_Remove <- c()
+to_Remove <- c(to_Remove, "Timestamp",
+               bicos_sat,
+               mileston, resource,
+               policies,
+               skills_A,skills_B,
+               training,
+               committ,advisor,co_advi,
+               finance,mental,stu_life,harrass,dev,
+               gsc, extra)
+```
+
+## Create the subsetted dataframe by removing all indices in dimensions from to_Remove
+
+Fixed an index because someone wrote "24 I think" for a parameter that should have been numeric (This guy changed everything to a factor!!)
+
+```{r, echo=FALSE}
+df_names <- setdiff(dimensions, to_Remove)
+df_roger <- df[df_names]
+
+df_roger$How.old.are.you.[82]<- 24
+```
+
+## Created a theme for plotting.
+
+x-axis text horizontally adjusted by +0.5. Axis is black. White background, border, major and minor lines.
+
+```{r, echo=FALSE}
+a_theme <- 'theme(axis.text.x = element_text(angle = 0, hjust = 0.5),
+                 axis.line = element_line(colour = "black"),
+                 panel.grid.major = element_blank(),
+                 panel.grid.minor = element_blank(),
+                 panel.border = element_blank(),
+                 panel.background = element_blank())'
+```
+
+## Age of Graduate Students
+
+```{r, echo = FALSE}
+ggplot(data = df_roger) +
+  geom_bar(aes(x = How.old.are.you.)) +
+  labs(title = "Student Age", x = "Age", y = "Count") +
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_discrete(expand = c(0,0)) +
+  eval(parse(text=as.character(a_theme)))
+```
+
+## Of those who answered the survey: Age of Graduate Students by Year in Graduate School
+
+```{r, echo = FALSE}
+ggplot(data = df_roger, aes(x = What.year.are.you., y = as.numeric(as.character(How.old.are.you.)))) +
+  geom_violin(fill = "gray") + geom_boxplot(width=0.1) +
+  geom_dotplot(binaxis = "y", stackdir = "center", dotsize = .2) +
+  labs(title = "Student Age by Year in Grad School", x = "Year", y = "Age") +
+  scale_y_continuous(breaks=seq(20,36,2)) +
+  theme(legend.position = "none") +
+  eval(parse(text=as.character(a_theme)))
+```
+
+## Graduate Student Survey Response by Year
+
+```{r, echo = FALSE}
+ggplot(data = df_roger, aes(x = What.year.are.you.)) +
+  geom_bar() +
+  labs(title = "Responses to Survey by Year in Grad School", x = "Year", y = "Number") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,36), breaks=seq(0,36,4)) +
+  eval(parse(text=as.character(a_theme)))
+```
+
+## Graduate Student Survey Response by Gender
+
+```{r, echo = FALSE}
+ggplot(data = df_roger, aes(x = df_roger$What.is.your.gender.identity...check.all.that.apply.)) +
+  geom_bar() + geom_text(stat = "count", aes(label = ..count..), vjust = -1) +
+  labs(title = "Responses to Survey by Gender", x = "Gender", y = "Number") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,70), breaks=seq(0,70,10)) +
+  eval(parse(text=as.character(a_theme))) + theme(axis.text.x = element_text(angle = 0, hjust = .5))
+```
+
+## Graduate Student Survey Response by Gender and Year
+
+```{r, echo = FALSE}
+ggplot(data = df_roger, aes(x = df_roger$What.year.are.you., fill = df_roger$What.is.your.gender.identity...check.all.that.apply.)) +
+  geom_bar(color = "black", position=position_dodge()) +
+  geom_text(stat = "count", aes(label = ..count..), position=position_dodge(1), vjust = -0.5, size = 3.5) +
+  labs(title = "Gender Distribution by Year", x = "Year", y = "Number") + scale_fill_brewer(name = "Gender" , palette = "Greys") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,20), breaks=seq(0,20,2)) +
+  eval(parse(text=as.character(a_theme))) +
+  theme(legend.position = c(0.9,0.9))
+```
+
+## Response by Department
+
+Most people only listed one department. Some listed Molecular Medicine + "xyz Department". For those who had more than one, they were categorized as Molecular Medicine
+
+```{r,echo = FALSE}
+df_roger$What.department.s..are.you.in.<- sub("^.*?(Molecular Medicine,).*|.*(, Molecular Medicine).*$", # Use RegEx to match _Molecular Medicine, or Molecular Medicine_
+                                              "Molecular Medicine", # Replace the match with Molecular Medicine
+                                              df_roger$What.department.s..are.you.in.)
+
+ggplot(data = df_roger, aes(x = reorder(What.department.s..are.you.in., What.department.s..are.you.in., function(x)+length(x)), fill= In.which.campus.are.you.enrolled.)) + # gives reordering by count.
+  geom_bar(color = "black", stat = "count", position= position_dodge()) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(1), vjust = -0.3, color = "black") +
+  scale_x_discrete(labels = function(x) lapply(strwrap(x, width = 10, simplify = FALSE), paste, collapse="\n")) + # Method of "wrapping x-axis text"
+  labs(title = "Student Survey Responses Home Department", x = "", y ="") +
+  scale_fill_brewer(name = "" , palette = "Greys") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,40), breaks = seq(0,40,5)) +
+  theme(legend.position = c(0.15,0.9)) +
+  eval(parse(text=as.character(a_theme)))
+```
+
+## Response by Home Department and Lab Size
+
+```{r, echo = FALSE}
+# Order your factor by level.
+df_roger$How.many.people.are.in.your.lab...including.students..postdocs..staff..admin.. <- factor(x = df_roger$How.many.people.are.in.your.lab...including.students..postdocs..staff..admin.., levels = c("1-5","6-10","11-15","16-20","21+"))
+
+ggplot(data = df_roger, aes(x = What.department.s..are.you.in., fill = How.many.people.are.in.your.lab...including.students..postdocs..staff..admin..)) +
+  geom_bar(color = "black", position = position_dodge()) +
+  geom_text(stat = "count", aes(label = ..count..), position=position_dodge(1), vjust = -0.5, size = 3.5) +
+  labs(title = "Department Size by Lab Size", x = "", y = "Number") + 
+  scale_fill_brewer(name = "Total Lab Members", palette ="Greys") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,24), breaks = seq(0,24,2)) +
+  scale_x_discrete(labels = function(x) lapply(strwrap(x, width = 10, simplify = FALSE), paste, collapse="\n")) + # Method of "wrapping x-axis text"
+  eval(parse(text=as.character(a_theme))) +
+  theme(axis.text.x = element_text(angle = 0, hjust = .5), legend.position = c(0.9, 0.85))
+```
+
+## Response by Lab Size
+
+```{r, echo = FALSE}
+
+ggplot(data = df_roger,aes(x = How.many.people.are.in.your.lab...including.students..postdocs..staff..admin..)) +
+  geom_bar(color = "black") + geom_text(stat = "count", aes(label=..count..), vjust = 1.3, color = "white") +
+  labs(title = "Number of Members in a Lab", x = "", y = "Number") + 
+  scale_y_continuous(expand = c(0,0), limits = c(0,30), breaks=seq(0,30,5)) +
+  eval(parse(text=as.character(a_theme)))
+```
+
+## Grad Students in Labs by Campus
+
+```{r, echo = FALSE}
+df_roger$How.many.graduate.students..including.yourself..are.in.your.lab. <- factor(df_roger$How.many.graduate.students..including.yourself..are.in.your.lab.,
+                                                                                    levels = c("1", "2-5", "6-10", "11+"))
+
+ggplot(data = df_roger, aes(x = How.many.graduate.students..including.yourself..are.in.your.lab., fill = In.which.campus.are.you.enrolled.)) +
+  geom_bar(color = "black", position = position_dodge()) +
+  geom_text(stat = "count", position = position_dodge(1), aes(label = ..count..), vjust = 1.3, color = "black") +
+  labs(title = "Graduate Students in your lab by Campus", x = "Graduate Students in your lab (inclusive)", y = "Number") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,40), breaks = seq(0,40,5)) +
+  scale_fill_brewer(name = "", palette = "Greys") +
+  eval(parse(text=as.character(a_theme)))
+```
+
+## Campus
+
+```{r, echo = FALSE}
+ggplot(data = df_roger, aes(x = In.which.campus.are.you.enrolled.)) +
+  geom_bar(color = "black", position = position_dodge()) +
+  geom_text(stat = "count", position = position_dodge(1), aes(label = ..count..), vjust = 1.3, color = "white") +
+  labs(title = "Distribution of Students who answered the survey", x = "", y = "") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,100), breaks=seq(0,100,10)) +
+  eval(parse(text=as.character(a_theme)))
+```
+
+## Where to put the lounge
+Had to Subset the data first and fill in the blanks.
+
+```{r, echo = FALSE}
+lounge_df<-df_roger[11:12] #subset
+lounge_df$row_Name <- seq(1, length(lounge_df$I.would.utilize.a.graduate.student.lounge.located.on.the._____...1st.floor.of.Beckman.)) # add id #s
+#Fill in the blanks
+lounge_df$I.would.utilize.a.graduate.student.lounge.located.on.the._____...1st.floor.of.Beckman.<- sub("^$", "No Response", lounge_df$I.would.utilize.a.graduate.student.lounge.located.on.the._____...1st.floor.of.Beckman.)
+lounge_df$I.would.utilize.a.graduate.student.lounge.located.on.the._____...3rd.floor.of.Hazen. <- sub("^$", "No Response", lounge_df$I.would.utilize.a.graduate.student.lounge.located.on.the._____...3rd.floor.of.Hazen.)
+lounge_df2 <-melt(lounge_df, id = "row_Name") #reshape the df
+
+#reorder the factors
+lounge_df2$value <- factor(lounge_df2$value, levels = c("No Response", "Strongly disagree", "Disagree", "Neither agree nor disagree", "Agree", "Strongly agree"))
+
+ggplot(data = lounge_df2 %>% filter(value != "No Response"), aes(x = value, fill = variable)) + #ctrl + shft + m gives you pipe. filter on value, need dplyr
+  geom_bar(color = "black", position = position_dodge()) + 
+  geom_text(stat = "count", position = position_dodge(1), aes(label = ..count..), vjust= 1.3, color = "black") +
+  labs(title = "Graduate Lounge Location", x = "", y = "Number") +
+  scale_fill_brewer(name = "Lounge in..", palette ="Greys", labels = c("Beckman", "Hazen")) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,30), breaks=seq(0,30,5)) +
+  eval(parse(text=as.character(a_theme))) + theme(legend.position = c(0.9,0.9))
+```
+
+## What was your experience prior to Scripps?
+
+```{r, echo = FALSE}
+ggplot(data = df_roger, aes(x = My.job.schooling.preceding.my.start.in.grad.school.at.TSRI.is.best.described.as.____., fill = What.year.are.you.)) + 
+  geom_bar(color = "black", position = position_dodge()) +
+  labs(title = "What were you doing preceding Graduate School", x = "", y = "") +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(1), vjust = 1.3, size = 3.5) +
+  scale_x_discrete(labels = c("Worked:\nAcademic Lab", "Worked: Industry \n (Science)", "Worked: Industry \n (Non-Science)", "School:\nBachelors", "School:\nMasters")) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,20), breaks = seq(0,20,2))+
+  scale_fill_brewer(name = "Year", palette = "Greys") +
+  eval(parse(text = as.character(a_theme))) +
+  theme(legend.position = c(0.15, .9), legend.direction = "horizontal")
+```
+
+## Prentation, Publications and On-Campus Interviews
+
+```{r, echo=FALSE}
+prep_Prior_GS <- cbind(df_roger$What.year.are.you., df_roger[17:19])                # subset df
+prep_Prior_GS_melt <- melt(prep_Prior_GS, id = c("df_roger$What.year.are.you."))    # melt df
+prep_Prior_GS_melt$variable2 <- gsub("[.]", " ", prep_Prior_GS_melt$variable)       # replace all "." with " "
+prep_Prior_GS_melt$variable2 <- gsub("before starting in the grad program", " ", prep_Prior_GS_melt$variable2) # replace that phrase with nothing
+prep_Prior_GS_melt$value <- factor(prep_Prior_GS_melt$value, levels = c("Yes", "No"))     # Orders the Factor
+
+ggplot(data = prep_Prior_GS_melt, aes(x = variable2, fill = value)) +
+  geom_bar(color = "black", position = position_dodge()) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(1), vjust = 1, hjust = 1.5, size = 3.5) +
+  labs(title = "Before starting in the grad program...", x = "", y = "") +
+  scale_x_discrete(labels = function(x) lapply(strwrap(x, width = 17, simplify = FALSE), paste, collapse="\n")) + # Method of "wrapping x-axis text"
+  scale_y_continuous(expand = c(0,0), limits = c(0,100), breaks = seq(0,100,20)) +
+  scale_fill_brewer(name = "", palette ="Greys", labels = c("Yes", "No")) +
+  coord_flip() +
+  eval(parse(text = as.character(a_theme))) +
+  theme(legend.position = c(0.9,0.9))
+```
+
+## Grad lounge recommendation
+
+I'm gong to try and do a word cloud.  Here I'm transforming the data to remove weird funky stuff
+
+```{r, include = FALSE, echo=FALSE}
+library(tm)
+library(SnowballC)
+library(wordcloud)
+df_roger$Please.provide.recommendations.for.the.graduate.student.lounge. <- sub("^$", "No Response", df_roger$Please.provide.recommendations.for.the.graduate.student.lounge.)
+
+docs <- VCorpus(VectorSource(df_roger$Please.provide.recommendations.for.the.graduate.student.lounge.))
+
+```
+Text cleaning
+```{r, echo=FALSE}
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeWords, stopwords("english"))
+docs <- tm_map(docs, removeWords, c("no response", "response", "no","can","etc", "take", "reason","use", "maybe", "like", "seen","quite","used","separate","student","butler","usually","spot","away","long"))
+docs <- tm_map(docs, stripWhitespace)
+docs <- tm_map(docs, removePunctuation)
+docsCopy <- docs
+docs <- tm_map(docs, stemDocument)
+```
+Transformation of data to a matrix then to dataframe. Create a vector (docs2) and complete the stemmed words.
+```{r, echo=FALSE}
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m), decreasing = TRUE)
+d <- data.frame(word = names(v), freq = v)
+
+docs2 <- stemCompletion(d$word, dictionary = docsCopy, type = "shortest")
+```
+Build Word Cloud with stemmed words as input word, and frequency.
+```{r, echo=FALSE}
+set.seed(1234)
+wordcloud(words = docs2, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+## Influences on Enrollment. 
+
+Clean up the data... If entry has more than one, Changed entry to that lower level. Lots of clean up here.
+
+```{r, echo=FALSE}
+inf_Enroll <- cbind(df_roger$What.year.are.you., df_roger[20:28])                # subset df
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...Alumni.publications.or.other.success.outcomes.[41] <-  "Modestly contributed"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...Alumni.publications.or.other.success.outcomes.[63] <- "Slightly contributed"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...Alumni.publications.or.other.success.outcomes.[79] <- "Slightly contributed"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...Alumni.publications.or.other.success.outcomes.[114] <- "Did not contribute"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...External.factors.such.as.spouse.or.family.considerations.[26] <- "Did not contribute"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...External.factors.such.as.spouse.or.family.considerations.[79] <- "Did not contribute"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...External.factors.such.as.spouse.or.family.considerations.[106] <- "Modestly contributed"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...Faculty.and.their.research.[21] <- "Modestly contributed"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...Flexibility.of.program.[77] <- "Modestly contributed"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...Location.[7] <- "Slightly contributed"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...Stipend.and.benefits.[36] <- "Slightly contributed"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...Stipend.and.benefits.[55] <- "Modestly contributed"
+inf_Enroll$How.did.the.following.factors.contribute.to.your.decision.in.choosing.Scripps.Research.for.graduate.school...Stipend.and.benefits.[60] <- "Did not contribute"
+
+inf_Enroll_melt <- melt(inf_Enroll, id = c("df_roger$What.year.are.you."))    # melt df
+inf_Enroll_melt$variable2 <- gsub("[.]", " ", inf_Enroll_melt$variable)       # replace all "." with " "
+inf_Enroll_melt$variable2 <- gsub("How did the following factors contribute to your decision in choosing Scripps Research for graduate school", " ", inf_Enroll_melt$variable2) # replace that phrase with nothing
+inf_Enroll_melt$value <- factor(inf_Enroll_melt$value, levels = c("Strongly contributed",
+                                                                  "Modestly contributed",
+                                                                  "Slightly contributed",
+                                                                  "Did not contribute"))     # Orders the Factor
+```
+
+## How factors contributed to decsion in choosing Scripps:
+
+```{r, echo=FALSE}
+ggplot(data = inf_Enroll_melt, aes(x = variable2, fill = value)) +
+  geom_bar(color = "black", position = position_dodge(-.9)) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(-1), vjust = 0.4, hjust = -.25, size = 2.5) +
+  labs(title = "How these factors contribute to your decision in choosing Scripps:", x = "", y = "") +
+  scale_x_discrete(labels = function(x) lapply(strwrap(x, width = 20, simplify = FALSE), paste, collapse="\n")) + # Method of "wrapping x-axis text"
+  scale_y_continuous(expand = c(0,0), limits = c(0,120), breaks = seq(0,120,20)) +
+  scale_fill_brewer(name = "", palette ="Greys", labels = c("Strongly", "Modestly","Slightly","Did not")) +
+  eval(parse(text = as.character(a_theme))) +
+  theme(legend.position = c(0.9,0.9),
+        axis.text.y = element_text(color = "black", size = 8, vjust = .5, face = "plain")) + 
+  coord_flip()
+```
+
+## Graduate Schools Applied to and Accepted into. Some person got accepted to Zero Schools
+
+```{r, echo=FALSE}
+apply_accept <- cbind(df_roger$What.year.are.you., df_roger[29:30])
+colnames(apply_accept) <- c("Year", "Applied", "Accepted")
+apply_accept$id <- seq(1,length(apply_accept$Year))
+aa_melt <- melt(apply_accept, id = c("id","Year"))
+
+aa <- ggplot(data = aa_melt) +
+  geom_boxplot(aes(x = variable, y = value)) +
+  geom_point(aes(x = variable, y = value),alpha = 0.15, size = 1, shape = 21) +
+  geom_line(aes(x = variable,y = value, group = id), alpha = 0.15) +
+  labs(title = "Schools Applied and Accepted to", x = "", y = "") +
+  scale_y_continuous(expand = c(0,0),limits = c(0,20), breaks = seq(0,20,2)) +
+  eval(parse(text = as.character(a_theme))) +
+  theme(legend.position = c(0.9,0.9),
+        axis.text.y = element_text(color = "black", size = 8, vjust = .5, face = "plain"))
+
+aa
+```
+
+### Faceted by Year
+
+```{r}
+aa + facet_grid(. ~ Year) + labs(title = "Schools Applied and Accepted to (by Year)")
+```
+
+## Before enrolling into grad school, I had the ... required to succeed (faceted by Year)
+
+```{r, echo=FALSE}
+begs <- cbind(df_roger$What.year.are.you., df_roger[31:35])
+colnames(begs) <- c("Year", "Analytical & Research skills", "Writing & Communication skills", "Confidence & Motivation skills", "Knowledge of How Academia Works", "Support & Resources")
+
+begs_melt <- melt(begs, id = c("Year"))
+begs_melt$value <- factor(begs_melt$value, levels = c("Strongly disagree","Disagree","Neither agree nor disagree", "Agree","Strongly Agree" ))
+
+ggplot(data = begs_melt) +
+  geom_bar(aes(x = value)) +
+  facet_grid(Year ~ variable)
+```
+
+```{r, echo=FALSE}
+for (i in levels(begs_melt$variable)){
+  plot <- ggplot(data = subset(begs_melt, begs_melt$variable == i)) +
+    geom_bar(aes(x = value)) +
+    geom_text(stat = "count", aes(label = ..count.., x = value), vjust = -.5) +
+    labs(title = paste("Before grad school, I had the", i,"required to succeed", sep = " "), y = "", x = "") +
+    scale_y_continuous(expand = c(0,0),limits = c(0,70), breaks = seq(0,70,10))+
+    eval(parse(text = as.character(a_theme))) +
+    theme(legend.position = c(0.9,0.9),
+          axis.text.y = element_text(color = "black", size = 8, vjust = .5, face = "plain"),
+          axis.title = element_text(color = "black", size = 5))
+  print(plot)
+}
+```
+
+## Grad Student Retreat
+
+```{r, echo=FALSE}
+retreat <- cbind(df_roger$What.year.are.you., df_roger[36:41])
+retreat <- cbind(retreat, df_roger[43])
+colnames(retreat) <- c("Year",
+                       "GSS is an integral part to the Grad School Experience",
+                       "I would still attend the GSS if it were Dry",
+                       "My advisor has been supportive of me going to the GSS when it's off-campus",
+                       "My advisor likely would be supportive of me going to the GSS when it's on-campus",
+                       "I would attend the GSS if it were on campus",
+                       "I am given enough opportunities to present to my research to my peers",
+                       "The Distinguished lecture series is an integral part to the Grad School Experience")
+retreat_melt <- melt(retreat, id = c("Year"))
+retreat_melt$value <- factor(retreat_melt$value, levels = c("Strongly disagree","Disagree","Neither agree nor disagree", "Agree","Strongly agree" ))
+```
+
+```{r, echo=FALSE}
+for (i in levels(retreat_melt$variable)){
+  plot <- ggplot(data = subset(retreat_melt, retreat_melt$variable == i)) +
+    geom_bar(aes(x = value)) +
+    geom_text(stat = "count", aes(label = ..count.., x = value), vjust = -.5) +
+    labs(title = i, y = "", x = "") +
+    scale_y_continuous(expand = c(0,0),limits = c(0,70), breaks = seq(0,70,10))+
+    eval(parse(text = as.character(a_theme))) +
+    theme(legend.position = c(0.9,0.9),
+          axis.text.y = element_text(color = "black", size = 8, vjust = .5, face = "plain"),
+          axis.title = element_text(color = "black", size = 5))
+  print(plot)
+  print(plot+
+          facet_grid(.~Year)+
+          labs(title=paste(i, "\n By Year", sep="")))
+}
+```
+
+## In your opinion, What is the most valuable part of the Graduate Student Symposium (GSS)?
+
+```{r, echo=FALSE}
+val_GSS <- cbind(df_roger[2], df_roger[42])
+colnames(val_GSS) <- c("Year", "The most valuable part of GSS")
+val_GSS <- melt(val_GSS, id = c("Year"))
+val_GSS$value[31] <- "Bicoastal interactions" #Changed from "Its the only way to pay lipservice to Bicoastal Interactions"
+
+ggplot(data = val_GSS) +
+  geom_bar(aes(x = reorder(value, value, function(x)+length(x)))) +
+  geom_text(stat = "count", aes(label = ..count.. , x = value), hjust = -0.25) + #adds count to each bar
+  scale_x_discrete(labels = function(x) lapply(strwrap(x, width = 15, simplify = FALSE), paste, collapse="\n")) + #method to wrap axis words
+  scale_y_continuous(expand = c(0,0),limits = c(0,70), breaks = seq(0,70,10)) +
+  labs(title = "What is the most valuable part of the GSS?", x = "", y = "") +
+  coord_flip() +
+  eval(parse(text = as.character(a_theme))) +
+  theme(legend.position = c(0.9,0.9),
+        axis.text.y = element_text(color = "black", size = 8, vjust = .5, face = "plain"),
+        axis.title = element_text(color = "black", size = 5))
+```
+
+## Satisfaction with...
+
+```{r, echo=FALSE}
+satisfact <- cbind(df_roger[2], df_roger[44:53])
+colnames(satisfact) <- c("Year",
+                         "Selection of Professors in Graduate Program",
+                         "Options for lab rotations",
+                         "Choosing a lab to rotate in",
+                         "Rotation Start & End",
+                         "Team Teaching",
+                         "Bicoastal Teaching",
+                         "Number of Classes",
+                         "Diversity of Classes",
+                         "Amount of Course work",
+                         "Course Rigor")
+satisfact <- melt(satisfact, id = c("Year"))
+satisfact$value <- factor(satisfact$value, levels = c("Very dissatisfied","Dissatisfied","Neutral", "Satisfied","Very satisfied"))
+```
+
+```{r, echo=FALSE}
+for (i in levels(satisfact$variable)){
+  plot <- ggplot(data = subset(satisfact, satisfact$variable == i)) +
+    geom_bar(aes(x = value)) +
+    geom_text(stat = "count", aes(label = ..count.., x = value), vjust = .9, color = "white") +
+    labs(title = i, y = "", x = "") +
+    scale_y_continuous(expand = c(0,0),limits = c(0,70), breaks = seq(0,70,10))+
+    eval(parse(text = as.character(a_theme))) +
+    theme(legend.position = c(0.9,0.9),
+          axis.text.y = element_text(color = "black", size = 8, vjust = .5, face = "plain"),
+          axis.title = element_text(color = "black", size = 5))
+  print(plot)
+  print(plot+
+          facet_grid(.~Year)+
+          labs(title = paste(i, "By Year", sep = " ")))
+}
+```
+
+## Why did your education not meet your expectations? (Word Cloud)
+
+```{r, echo=FALSE}
+df_roger$If.your.educational.experiences.did.not.meet.your.expectations..why.. <- sub("^$", "No Response", df_roger$If.your.educational.experiences.did.not.meet.your.expectations..why..)
+docs <- VCorpus(VectorSource(df_roger$If.your.educational.experiences.did.not.meet.your.expectations..why..))
+
+```
+
+Text cleaning
+```{r, echo=FALSE}
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeWords, stopwords("english"))
+docs <- tm_map(docs, removeWords, c("no response", "response", "no","can","etc", "take", "reason","use", "maybe", "like", "seen","quite","used","separate","student","butler","usually","spot","away","long"))
+docs <- tm_map(docs, stripWhitespace)
+docs <- tm_map(docs, removePunctuation)
+docsCopy <- docs
+docs <- tm_map(docs, stemDocument)
+```
+Transformation of data to a matrix then to dataframe. Create a vector (docs2) and complete the stemmed words.
+```{r, echo=FALSE}
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m), decreasing = TRUE)
+d <- data.frame(word = names(v), freq = v)
+
+docs2 <- stemCompletion(d$word, dictionary = docsCopy, type = "shortest")
+```
+Build Word Cloud with stemmed words as input word, and frequency.
+```{r, echo=FALSE}
+set.seed(1234)
+wordcloud(words = docs2, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+## Recommend improvements to 1st and 2nd Year satisfaction? (Word Cloud) 
+
+```{r, echo=FALSE}
+df_roger$Can.you.recommend.any.improvements.towards.first.and.second.year.satisfaction. <- sub("^$", "No Response", df_roger$Can.you.recommend.any.improvements.towards.first.and.second.year.satisfaction.)
+docs <- VCorpus(VectorSource(df_roger$Can.you.recommend.any.improvements.towards.first.and.second.year.satisfaction.))
+
+```
+
+Text cleaning
+```{r, echo=FALSE}
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeWords, stopwords("english"))
+docs <- tm_map(docs, removeWords, c("no response", "response", "no","can","etc", "take", "reason","use", "maybe", "like", "seen","quite","used","separate","student","butler","usually","spot","away","long"))
+docs <- tm_map(docs, stripWhitespace)
+docs <- tm_map(docs, removePunctuation)
+docsCopy <- docs
+docs <- tm_map(docs, stemDocument)
+```
+Transformation of data to a matrix then to dataframe. Create a vector (docs2) and complete the stemmed words.
+```{r, echo=FALSE}
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m), decreasing = TRUE)
+d <- data.frame(word = names(v), freq = v)
+
+docs2 <- stemCompletion(d$word, dictionary = docsCopy, type = "shortest")
+```
+Build Word Cloud with stemmed words as input word, and frequency.
+```{r, echo=FALSE}
+set.seed(1234)
+wordcloud(words = docs2, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+## Satisfaction on other aspects of Scripps.
+How satisfied are you with...
+
+```{r, echo=FALSE}
+satisfact2 <- cbind(df_roger$What.year.are.you.,df_roger[56:62])
+colnames(satisfact2) <- c("Year",
+                          "The graduate program overall",
+                          "Your educational experience",
+                          "The Graduate office staff",
+                          "The Teaching Faculty",
+                          "TSRI Executive Office",
+                          "Core Facilities",
+                          "Library Resources")
+satisfact2 <- melt(satisfact2, id = c("Year"))
+satisfact2 <- satisfact2[-c(74,188,302,416,530,644,758),]   # remove empty row (one persone skilled this.)
+satisfact2$value <- factor(satisfact2$value, levels = c("Very Dissatisfied","Dissatisfied","Neutral", "Satisfied","Very satisfied"))
+```
+
+```{r, echo = FALSE}
+for (i in levels(satisfact2$variable)){
+  plot <- ggplot(data = subset(satisfact2, satisfact2$variable == i)) +
+    geom_bar(aes(x = value)) +
+    geom_text(stat = "count", aes(label = ..count.., x = value), vjust = .9, color = "white") +
+    labs(title = paste("How satisfied are you with",i, sep = " "), y = "", x = "") +
+    scale_y_continuous(expand = c(0,0),limits = c(0,80), breaks = seq(0,80,10))+
+    eval(parse(text = as.character(a_theme))) +
+    theme(legend.position = c(0.9,0.9),
+          axis.text.y = element_text(color = "black", size = 8, vjust = .5, face = "plain"),
+          axis.title = element_text(color = "black", size = 5))
+  print(plot)
+  #print(plot+facet_grid(.~Year))
+}
+```
+
+## Recommendations for co-mentorship (Word Cloud)
+
+```{r, echo=FALSE}
+df_roger$Is.there.anything.else.you.would.like.to.share.regarding.co.advising. <- sub("^$", "No Response", df_roger$Is.there.anything.else.you.would.like.to.share.regarding.co.advising.)
+docs <- VCorpus(VectorSource(df_roger$Is.there.anything.else.you.would.like.to.share.regarding.co.advising.))
+
+```
+
+Text cleaning
+```{r, echo=FALSE}
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeWords, stopwords("english"))
+docs <- tm_map(docs, removeWords, c("no response", "response", "no","can","etc", "take", "reason","use", "maybe", "like", "seen","quite","used","separate","student","butler","usually","spot","away","long"))
+docs <- tm_map(docs, stripWhitespace)
+docs <- tm_map(docs, removePunctuation)
+docsCopy <- docs
+docs <- tm_map(docs, stemDocument)
+```
+Transformation of data to a matrix then to dataframe. Create a vector (docs2) and complete the stemmed words.
+```{r, echo=FALSE}
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m), decreasing = TRUE)
+d <- data.frame(word = names(v), freq = v)
+
+docs2 <- stemCompletion(d$word, dictionary = docsCopy, type = "shortest")
+```
+Build Word Cloud with stemmed words as input word, and frequency.
+```{r, echo=FALSE}
+set.seed(1234)
+wordcloud(words = docs2, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
