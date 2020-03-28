@@ -27,7 +27,7 @@ python-dateutil==2.8.0
 python-jsonrpc-server==0.0.2
 python-language-server==0.21.2
 pytz==2019.1
-requests==2.19.1
+requests==2.20.0
 rope==0.11.0
 ruamel-yaml==0.15.46
 screen==1.0.1
