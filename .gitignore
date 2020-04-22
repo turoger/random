@@ -3,3 +3,5 @@ Cindy/ANR/191016/*
 Cindy/ANR/tsv/*
 # venv
 Cindy/ANR/ANRvenv/*
+# ipynb notebooks
+Cindy/ANR/.ipynb*
